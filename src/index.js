@@ -175,7 +175,7 @@ const findAndRemoveElement = async () => {
                 ) {
                   if (modal && spanModal) {
                     await spanModal.click();
-                    break;
+                    // break;
                   }
                 }
               }
