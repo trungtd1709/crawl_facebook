@@ -51,7 +51,7 @@ const startPage = async () => {
     await page.setViewport({ width: 1080, height: 1500 });
     await createFolder();
     await cleanFile();
-    await closeModal();
+    // await closeModal();
     // await login();
 
     // await autoScroll();
@@ -224,7 +224,7 @@ const findAndRemoveElement = async () => {
     crawlElements.map(async (parentEl) => {
       await page.evaluate((el) => el.remove(), parentEl);
     });
-    await delay();
+    await delay(10000);
     crawlElements = await page.$$(crawlElementsSelector);
 
     // console.log("[crawlElements.length]:", crawlElements.length);
