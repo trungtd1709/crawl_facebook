@@ -93,6 +93,7 @@ const login = async () => {
   const loginButton = await page.$(loginButtonSelector);
   if (loginButton) {
     console.log("Found the login button");
+    // For example, to click the button:
     await loginButton.click();
   } else {
     console.log("Login button not found");
@@ -110,7 +111,9 @@ const findAndRemoveElement = async () => {
   while (true) {
     outerLoop: for (let parentEl of crawlElements) {
       const spans = await parentEl.$$(spanClickSelector);
+      // console.log("[spans.length]:", spans.length);
       let innerText = "";
+      let imgUrl = [];
       for (let span of spans) {
         const text = await span.evaluate((span) => span.innerText, span);
         if (
@@ -127,11 +130,22 @@ const findAndRemoveElement = async () => {
             if (!elementContainsLink) {
               await span.click();
               await delay(1000);
-              // break;
+              break;
             }
           }
+          // continue outerLoop;
         }
       }
+
+      // await page.evaluate(() => {
+      //   const divs = Array.from(document.querySelectorAll("div"));
+      //   const seeMoreDivs = divs.filter((div) => div.innerText === "See more");
+      //   seeMoreDivs.forEach((div) => {
+      //     if (div) {
+      //       div.click();
+      //     }
+      //   });
+      // });
 
       let modalFound = true;
 
@@ -161,9 +175,9 @@ const findAndRemoveElement = async () => {
               spanModalText === "View 1 reply"
             ) {
               if (modal && spanModal) {
-                await spanModal.evaluate((el) => el.scrollIntoView());
+                await spanModal.evaluate(el => el.scrollIntoView());
                 await spanModal.click();
-                break;
+                // break;
               }
             }
           }
@@ -173,9 +187,8 @@ const findAndRemoveElement = async () => {
             await page.evaluate((element) => element.innerText, modal)
           );
           await writeToFile(`[Post Index]: ${postIndex}`);
-          // await writeToFile(`[Modal] \n`);
           await writeToFile(`----------------- Start Post --------------- \n`);
-          await getImgUrlAndDownload(modal, postIndex);
+          await getImgUrl(modal, postIndex);
           console.log("[innerText]:", innerText);
           await writeToFile(`[Post content]: ${innerText} \n`);
           await writeToFile(`----------------- End Post --------------- \n`);
@@ -193,7 +206,7 @@ const findAndRemoveElement = async () => {
       );
       await writeToFile(`[Post Index]: ${postIndex}`);
       await writeToFile(`----------------- Start Post --------------- \n`);
-      await getImgUrlAndDownload(parentEl, postIndex);
+      await getImgUrl(parentEl, postIndex);
       console.log("[innerText]:", innerText);
       await writeToFile(`[Post content]: ${innerText}`);
       await writeToFile(`----------------- End Post --------------- \n`);
@@ -205,28 +218,21 @@ const findAndRemoveElement = async () => {
       // await page.evaluate((el) => el.remove(), parentEl);
     }
 
+    // Re-query the elements to see if more work is needed
     // await delay();
 
     crawlElements.map(async (parentEl) => {
       await page.evaluate((el) => el.remove(), parentEl);
     });
-    await delay(5000);
+    await delay();
     crawlElements = await page.$$(crawlElementsSelector);
+
+    // console.log("[crawlElements.length]:", crawlElements.length);
+    // if (crawlElements.length === 0) {
+    //   break;
+    // }
   }
   console.log("[EXIT LOOP]");
-};
-
-const writeResultToFile = async ({ postIndex, parentEl }) => {
-  const content = removeUnnecessaryStrPath(
-    await page.evaluate((element) => element.innerText, parentEl)
-  );
-  await writeToFile(`[Post Index]: ${postIndex}`);
-  await writeToFile(`----------------- Start Post --------------- \n`);
-  console.log("[content]:", content);
-  await writeToFile(`[Post content]: ${content}`);
-  await writeToFile(`----------------- End Post --------------- \n`);
-  await getImgUrlAndDownload(parentEl, postIndex);
-  ``;
 };
 
 async function autoScroll() {
@@ -250,7 +256,7 @@ async function autoScroll() {
   });
 }
 
-const getImgUrlAndDownload = async (parentEl, postIndex) => {
+const getImgUrl = async (parentEl, postIndex) => {
   const postImages = await parentEl.$$(postImgSelector);
   const replyImages = await parentEl.$$(replyImgSelector);
 
@@ -295,6 +301,16 @@ const getImgUrlAndDownload = async (parentEl, postIndex) => {
   }
 
   await downloadFiles(parentEl, postIndex);
+
+  // for (let img of filteredReplyImagesUrl) {
+  //   if (img) {
+  //     await writeToFile(`[Reply images]: ${img}`);
+  //   }
+  // }
+
+  // await writeToFile(`[Post images]: ${postImagesUrl}`);
+  // await writeToFile(`[Reply images]: ${replyImagesUrl}`);
+
   return;
 };
 
