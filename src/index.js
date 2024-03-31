@@ -44,6 +44,11 @@ function delay(time = 3000) {
   return new Promise((resolve) => setTimeout(resolve, time));
 }
 
+function checkStringViewAll(str) {
+  const regex = /^View all \d+ replies$/;
+  return regex.test(str);
+}
+
 const startPage = async () => {
   console.log("Start page");
   try {
@@ -57,9 +62,8 @@ const startPage = async () => {
     // await autoScroll();
     // await page.waitForNavigation();
     // let crawlElements = await page.$("123");
-    await delay();
     // await login();
-    // await delay(30000);
+    await delay(30000);
     await findAndRemoveElement();
   } catch (err) {
     console.log(err);
@@ -94,6 +98,7 @@ const login = async () => {
   if (loginButton) {
     console.log("Found the login button");
     // For example, to click the button:
+    await loginButton.evaluate((el) => el.scrollIntoView());
     await loginButton.click();
   } else {
     console.log("Login button not found");
@@ -113,7 +118,6 @@ const findAndRemoveElement = async () => {
       const spans = await parentEl.$$(spanClickSelector);
       // console.log("[spans.length]:", spans.length);
       let innerText = "";
-      let imgUrl = [];
       for (let span of spans) {
         const text = await span.evaluate((span) => span.innerText, span);
         if (
@@ -128,6 +132,7 @@ const findAndRemoveElement = async () => {
               return !!link;
             });
             if (!elementContainsLink) {
+              //  await spanModal.evaluate(el => el.scrollIntoView());
               await span.click();
               await delay(1000);
               break;
@@ -136,16 +141,6 @@ const findAndRemoveElement = async () => {
           // continue outerLoop;
         }
       }
-
-      // await page.evaluate(() => {
-      //   const divs = Array.from(document.querySelectorAll("div"));
-      //   const seeMoreDivs = divs.filter((div) => div.innerText === "See more");
-      //   seeMoreDivs.forEach((div) => {
-      //     if (div) {
-      //       div.click();
-      //     }
-      //   });
-      // });
 
       let modalFound = true;
 
@@ -158,29 +153,30 @@ const findAndRemoveElement = async () => {
       if (modalFound) {
         const modal = await page.$(modalSelector);
         if (modal) {
-          const spansModal = await modal.$$eval(spanClickSelector, (el) => {
-            return el[0].tagName.toLowerCase() === "span";
-          });
+          // const spansModal = await modal.$$eval(spanClickSelector, (el) => {
+          //   return el[0].tagName.toLowerCase() === "span";
+          // });
 
-          for (let i = 0; i < spansModal.length; i++) {
-            const spanModal = spansModal[i];
-            const spanModalText = await page.evaluate(
-              (span) => span.innerText,
-              spanModal
-            );
-            if (
-              spanModalText === "View more answers" ||
-              spanModalText === "View more comments" ||
-              checkStringViewAll(spanModalText) ||
-              spanModalText === "View 1 reply"
-            ) {
-              if (modal && spanModal) {
-                await spanModal.evaluate(el => el.scrollIntoView());
-                await spanModal.click();
-                // break;
-              }
-            }
-          }
+          // for (let i = 0; i < spansModal.length; i++) {
+          //   const spanModal = spansModal[i];
+          //   const spanModalText = await page.evaluate(
+          //     (span) => span.innerText,
+          //     spanModal
+          //   );
+          //   if (
+          //     spanModalText === "View more answers" ||
+          //     spanModalText === "View more comments" ||
+          //     checkStringViewAll(spanModalText) ||
+          //     spanModalText === "View 1 reply"
+          //   ) {
+          //     if (modal && spanModal) {
+          //       await spanModal.evaluate((el) => el.scrollIntoView());
+          //       await spanModal.click();
+          //       // break;
+          //     }
+          //   }
+          // }
+          await clickViewComment(modal);
           await delay(1000);
           await clickSeeMore(modal);
           innerText = removeUnnecessaryStrPath(
@@ -423,7 +419,7 @@ const createFolder = (postIndex) => {
 };
 
 const clickSeeMore = async (parentEl) => {
-  const seeMoreDivs = await page.$$(seeMoreSelector);
+  const seeMoreDivs = await parentEl.$$(seeMoreSelector);
   for (const div of seeMoreDivs) {
     const isSeeMore = await parentEl.evaluate(
       // (el) => el.textContent.trim() === "See more",
@@ -445,10 +441,38 @@ const clickSeeMore = async (parentEl) => {
   await delay(1000);
 };
 
-function checkStringViewAll(str) {
-  const regex = /^View all \d+ replies$/;
-  return regex.test(str);
-}
+const clickViewComment = async (parentEl) => {
+  const viewCommentEls = await parentEl.$$(spanClickSelector);
+  for (const div of viewCommentEls) {
+    const isMoreComment = await parentEl.evaluate((el) => {
+      // Function to check if the text matches "View all [number] replies"
+      function checkStringViewAll(str) {
+        const regex = /^View all \d+ replies$/;
+        return regex.test(str);
+      }
+
+      // Evaluate the text content of the element against multiple conditions
+      return (
+        el.textContent === "View more answers" ||
+        el.textContent === "View more comments" ||
+        checkStringViewAll(el.textContent) || // Use the checkStringViewAll function
+        el.textContent == "View 1 reply"
+      );
+    }, div);
+    if (isMoreComment) {
+      // Scroll the div into view
+      await div.evaluate((el) => el.scrollIntoView(), div);
+      // await delay(500);
+
+      try {
+        await div.click();
+      } catch (error) {
+        await div.evaluate((el) => el.click(), div);
+      }
+    }
+  }
+  await delay(1000);
+};
 
 const downloadFiles = async (parentEl, postIndex) => {
   const links = await parentEl.$$eval(
